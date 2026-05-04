@@ -1,6 +1,6 @@
 streamlit
 pandas
 scikit-learn
-matplotlib
+matplotlib==3.8.4
 plotly
 fpdf
