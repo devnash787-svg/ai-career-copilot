@@ -1,20 +1,34 @@
 import streamlit as st
-import pickle
+import pandas as pd
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 
 from utils.resume_parser import extract_skills
 from utils.skill_gap import get_skill_gap
 from utils.recommender import get_roadmap
 from utils.chatbot import career_chatbot
 
-# Load CSS
+# ================= LOAD CSS =================
 with open("assets/styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# Load ML model
-model = pickle.load(open("models/career_model.pkl", "rb"))
-vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
+# ================= LOAD DATASET =================
+df = pd.read_csv("data/careers_dataset.csv")
 
-# Page Config
+X = df["skills"]
+y = df["career"]
+
+# ================= TRAIN MODEL =================
+vectorizer = TfidfVectorizer()
+
+X_vec = vectorizer.fit_transform(X)
+
+model = LogisticRegression()
+
+model.fit(X_vec, y)
+
+# ================= PAGE CONFIG =================
 st.set_page_config(
     page_title="AI Career Copilot",
     layout="wide"
@@ -36,7 +50,7 @@ st.markdown("---")
 # ================= LAYOUT =================
 col1, col2 = st.columns(2)
 
-# ================= LEFT COLUMN =================
+# ================= LEFT =================
 with col1:
 
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -76,7 +90,7 @@ with col1:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ================= RIGHT COLUMN =================
+# ================= RIGHT =================
 with col2:
 
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -88,7 +102,6 @@ with col2:
 
     if st.button("🚀 Analyze Career"):
 
-        # Decide input source
         if uploaded_file:
             input_text = " ".join(extracted_skills)
             user_skills = extracted_skills
@@ -101,20 +114,16 @@ with col2:
                 if s.strip()
             ]
 
-        # Check empty input
         if input_text:
 
-            # Vector transform
             vec = vectorizer.transform([input_text])
 
-            # Prediction
             prediction = model.predict(vec)
 
             career = prediction[0]
 
             st.success(f"🎯 Predicted Career: {career}")
 
-            # Save career
             st.session_state["career"] = career
 
             # Skill Gap
