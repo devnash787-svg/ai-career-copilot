@@ -1,6 +1,6 @@
 import streamlit as st
 import pickle
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 from utils.resume_parser import extract_skills
 from utils.skill_gap import get_skill_gap
@@ -11,7 +11,7 @@ from utils.chatbot import career_chatbot
 with open("assets/styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# Load ML model
+# Load model
 model = pickle.load(open("models/career_model.pkl", "rb"))
 vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
 
@@ -41,7 +41,7 @@ with col1:
 
     if uploaded_file:
         resume_text = uploaded_file.read().decode("utf-8")
-        st.success("Resume uploaded successfully")
+        st.success("✅ Resume uploaded successfully")
 
         extracted_skills = extract_skills(resume_text)
         st.write("🧠 Extracted Skills:", extracted_skills)
@@ -76,15 +76,16 @@ with col2:
             st.markdown("### 📉 Skill Gap")
             st.write(missing_skills if missing_skills else "✅ No gaps")
 
-            # Chart
-            st.markdown("### 📊 Skill Chart")
+            # Plotly Chart
+            st.markdown("### 📊 Skill Analysis")
 
-            fig, ax = plt.subplots()
-            ax.bar(
-                ["Your Skills", "Missing Skills"],
-                [len(user_skills), len(missing_skills)]
+            fig = px.bar(
+                x=["Your Skills", "Missing Skills"],
+                y=[len(user_skills), len(missing_skills)],
+                title="Skill Comparison",
+                labels={"x": "Category", "y": "Count"}
             )
-            st.pyplot(fig)
+            st.plotly_chart(fig, use_container_width=True)
 
             # Roadmap
             st.markdown("### 📚 Roadmap")
@@ -95,7 +96,7 @@ with col2:
             st.session_state["career"] = career
 
         else:
-            st.warning("Enter skills or upload resume")
+            st.warning("⚠️ Enter skills or upload resume")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -106,15 +107,9 @@ st.markdown("<h3 class='blue'>🤖 Career Chatbot</h3>", unsafe_allow_html=True)
 user_query = st.text_input("💬 Ask your career assistant", placeholder="skills, salary, roadmap?")
 
 if "career" in st.session_state:
-
     if user_query:
-        response = career_chatbot(user_query, st.session_state["career"])
         st.chat_message("user").write(user_query)
+        response = career_chatbot(user_query, st.session_state["career"])
         st.chat_message("assistant").write(response)
-
 else:
-    st.warning("Run analysis first to activate chatbot")
-
-
-
-    
+    st.warning("Analyze career first to activate chatbot")
