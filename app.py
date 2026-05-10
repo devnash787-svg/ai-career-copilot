@@ -1,6 +1,5 @@
 import streamlit as st
 import pickle
-import plotly.express as px
 
 from utils.resume_parser import extract_skills
 from utils.skill_gap import get_skill_gap
@@ -11,105 +10,162 @@ from utils.chatbot import career_chatbot
 with open("assets/styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# Load model
+# Load ML model
 model = pickle.load(open("models/career_model.pkl", "rb"))
 vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
 
-# Page config
-st.set_page_config(page_title="AI Career Copilot", layout="wide")
+# Page Config
+st.set_page_config(
+    page_title="AI Career Copilot",
+    layout="wide"
+)
 
-# Header
-st.markdown("<h1 class='main-title'>🚀 AI Career Copilot</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>AI-powered Career Guidance System</p>", unsafe_allow_html=True)
+# ================= HEADER =================
+st.markdown(
+    "<h1 class='main-title'>🚀 AI Career Copilot</h1>",
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    "<p class='subtitle'>AI Powered Career Guidance Platform</p>",
+    unsafe_allow_html=True
+)
+
 st.markdown("---")
 
-# Layout
+# ================= LAYOUT =================
 col1, col2 = st.columns(2)
 
-# ================= LEFT =================
+# ================= LEFT COLUMN =================
 with col1:
+
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    st.markdown("<h3 class='yellow'>✨ Enter Your Skills</h3>", unsafe_allow_html=True)
-    skills_input = st.text_input("", placeholder="python, machine learning, sql")
+    st.markdown(
+        "<h3 class='yellow'>✨ Enter Your Skills</h3>",
+        unsafe_allow_html=True
+    )
 
-    st.markdown("<h3 class='green'>📄 Upload Resume</h3>", unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("", type=["txt"])
+    skills_input = st.text_input(
+        "",
+        placeholder="python, machine learning, sql"
+    )
 
-    resume_text = ""
+    st.markdown(
+        "<h3 class='green'>📄 Upload Resume</h3>",
+        unsafe_allow_html=True
+    )
+
+    uploaded_file = st.file_uploader(
+        "",
+        type=["txt"]
+    )
+
     extracted_skills = []
 
     if uploaded_file:
+
         resume_text = uploaded_file.read().decode("utf-8")
+
         st.success("✅ Resume uploaded successfully")
 
         extracted_skills = extract_skills(resume_text)
-        st.write("🧠 Extracted Skills:", extracted_skills)
+
+        st.write("🧠 Extracted Skills:")
+        st.write(extracted_skills)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ================= RIGHT =================
+# ================= RIGHT COLUMN =================
 with col2:
+
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    st.markdown("<h3 class='blue'>📊 Analysis</h3>", unsafe_allow_html=True)
+    st.markdown(
+        "<h3 class='blue'>📊 Career Analysis</h3>",
+        unsafe_allow_html=True
+    )
 
     if st.button("🚀 Analyze Career"):
 
+        # Decide input source
         if uploaded_file:
             input_text = " ".join(extracted_skills)
             user_skills = extracted_skills
+
         else:
             input_text = skills_input
-            user_skills = [s.strip().lower() for s in skills_input.split(",")]
+            user_skills = [
+                s.strip().lower()
+                for s in skills_input.split(",")
+                if s.strip()
+            ]
 
+        # Check empty input
         if input_text:
 
+            # Vector transform
             vec = vectorizer.transform([input_text])
-            career = model.predict(vec)[0]
+
+            # Prediction
+            prediction = model.predict(vec)
+
+            career = prediction[0]
 
             st.success(f"🎯 Predicted Career: {career}")
 
-            # Skill gap
+            # Save career
+            st.session_state["career"] = career
+
+            # Skill Gap
             missing_skills = get_skill_gap(user_skills, career)
 
             st.markdown("### 📉 Skill Gap")
-            st.write(missing_skills if missing_skills else "✅ No gaps")
 
-            # Plotly Chart
-            st.markdown("### 📊 Skill Analysis")
-
-            fig = px.bar(
-                x=["Your Skills", "Missing Skills"],
-                y=[len(user_skills), len(missing_skills)],
-                title="Skill Comparison",
-                labels={"x": "Category", "y": "Count"}
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            if missing_skills:
+                for skill in missing_skills:
+                    st.write(f"❌ {skill}")
+            else:
+                st.success("✅ No major skill gaps")
 
             # Roadmap
-            st.markdown("### 📚 Roadmap")
-            roadmap = get_roadmap(career)
-            for step in roadmap:
-                st.write("👉", step)
+            st.markdown("### 📚 Learning Roadmap")
 
-            st.session_state["career"] = career
+            roadmap = get_roadmap(career)
+
+            for step in roadmap:
+                st.write(f"👉 {step}")
 
         else:
-            st.warning("⚠️ Enter skills or upload resume")
+            st.warning("⚠️ Please enter skills or upload resume")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ================= CHATBOT =================
 st.markdown("---")
-st.markdown("<h3 class='blue'>🤖 Career Chatbot</h3>", unsafe_allow_html=True)
 
-user_query = st.text_input("💬 Ask your career assistant", placeholder="skills, salary, roadmap?")
+st.markdown(
+    "<h3 class='blue'>🤖 Career Chatbot</h3>",
+    unsafe_allow_html=True
+)
+
+user_query = st.text_input(
+    "💬 Ask your career assistant",
+    placeholder="Ask about salary, roadmap, skills..."
+)
 
 if "career" in st.session_state:
+
     if user_query:
+
         st.chat_message("user").write(user_query)
-        response = career_chatbot(user_query, st.session_state["career"])
+
+        response = career_chatbot(
+            user_query,
+            st.session_state["career"]
+        )
+
         st.chat_message("assistant").write(response)
+
 else:
-    st.warning("Analyze career first to activate chatbot")
+    st.warning("⚠️ Analyze career first to activate chatbot")
